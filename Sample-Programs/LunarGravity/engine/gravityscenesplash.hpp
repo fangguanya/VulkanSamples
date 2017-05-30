@@ -1,5 +1,5 @@
 /*
- * LunarGravity - gravityvulkandemo.hpp
+ * LunarGravity - gravityscenesplash.hpp
  *
  * Copyright (C) 2017 LunarG, Inc.
  *
@@ -20,26 +20,23 @@
 
 #pragma once
 
-#include "gravityvulkanengine.hpp"
+#include "gravityscene.hpp"
 
-class GravityVulkanDemo : public GravityVulkanEngine {
+class GravitySceneSplash : public GravityScene {
    public:
     // Create a protected constructor
-    GravityVulkanDemo();
-
-    // We don't want any copy constructors
-    GravityVulkanDemo(const GravityVulkanDemo &vulkan_demo) = delete;
-    GravityVulkanDemo &operator=(const GravityVulkanDemo &vulkan_demo) = delete;
+    GravitySceneSplash(Json::Value &root);
 
     // Make the destructor public
-    virtual ~GravityVulkanDemo();
+    virtual ~GravitySceneSplash();
 
-    virtual bool Init(std::vector<std::string> &arguments);
-    virtual void AppendUsageString(std::string &usage);
-
-    virtual bool ProcessEvents();
+    virtual bool Start();
     virtual bool Update(float comp_time, float game_time);
-    virtual bool BeginDrawFrame();
     virtual bool Draw();
-    virtual bool EndDrawFrame();
+    virtual bool End();
+
+   protected:
+    // We don't want any copy constructors
+    GravitySceneSplash(const GravitySceneSplash &scene) = delete;
+    GravitySceneSplash &operator=(const GravitySceneSplash &scene) = delete;
 };

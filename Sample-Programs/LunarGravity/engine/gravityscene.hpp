@@ -1,5 +1,5 @@
 /*
- * LunarGravity - gravityvulkandemo.hpp
+ * LunarGravity - gravityscene.hpp
  *
  * Copyright (C) 2017 LunarG, Inc.
  *
@@ -20,26 +20,31 @@
 
 #pragma once
 
-#include "gravityvulkanengine.hpp"
+#include <string>
 
-class GravityVulkanDemo : public GravityVulkanEngine {
+#include <json/json.h>
+
+class GravityScene {
    public:
+    // Factory Method
+    static GravityScene *LoadScene(std::string scene_file);
+
     // Create a protected constructor
-    GravityVulkanDemo();
+    GravityScene(Json::Value &root) { m_root = root; }
 
     // We don't want any copy constructors
-    GravityVulkanDemo(const GravityVulkanDemo &vulkan_demo) = delete;
-    GravityVulkanDemo &operator=(const GravityVulkanDemo &vulkan_demo) = delete;
+    GravityScene(const GravityScene &scene) = delete;
+    GravityScene &operator=(const GravityScene &scene) = delete;
 
     // Make the destructor public
-    virtual ~GravityVulkanDemo();
+    virtual ~GravityScene() { ; }
 
-    virtual bool Init(std::vector<std::string> &arguments);
-    virtual void AppendUsageString(std::string &usage);
+    virtual bool Start() = 0;
+    virtual bool Update(float comp_time, float game_time) = 0;
+    virtual bool Draw() = 0;
+    virtual bool End() = 0;
 
-    virtual bool ProcessEvents();
-    virtual bool Update(float comp_time, float game_time);
-    virtual bool BeginDrawFrame();
-    virtual bool Draw();
-    virtual bool EndDrawFrame();
+   protected:
+    // Json Root info
+    Json::Value m_root;
 };

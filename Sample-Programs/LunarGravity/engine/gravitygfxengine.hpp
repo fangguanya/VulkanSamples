@@ -28,6 +28,7 @@
 class GravityClock;
 class GravityWindow;
 struct GravitySettingGroup;
+class GravityScene;
 
 enum GravitySystemBatteryStatus {
     GRAVITY_BATTERY_STATUS_NONE = 0,
@@ -58,7 +59,7 @@ class GravityGraphicsEngine {
     virtual bool ProcessEvents() = 0;
 
     void Loop();
-    virtual bool Update() = 0;
+    virtual bool Update(float comp_time, float game_time) = 0;
     virtual bool BeginDrawFrame() = 0;
     virtual bool Draw() = 0;
     virtual bool EndDrawFrame() = 0;
@@ -88,6 +89,10 @@ class GravityGraphicsEngine {
 
     // Window
     GravityWindow *m_window;
+
+    // Scenes
+    GravityScene *m_cur_scene;
+    GravityScene *m_next_scene;
 
    private:
 };

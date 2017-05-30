@@ -119,6 +119,8 @@ endif()
 add_executable(LunarGravity
                 ${CMAKE_CURRENT_BINARY_DIR}/resources/shaders/simple_single_tex-vs.spv
                 ${CMAKE_CURRENT_BINARY_DIR}/resources/shaders/simple_single_tex-fs.spv
+                ${CMAKE_CURRENT_BINARY_DIR}/resources/scenes/gravitysplash.json
+                ${CMAKE_CURRENT_BINARY_DIR}/resources/textures/lunarg.ppm
                 ${CMAKE_CURRENT_BINARY_DIR}/resources/gravity.json
                 ${JSONCPP_SOURCE_DIR}/jsoncpp.cpp
                 utils/gravitylogger.cpp
@@ -129,6 +131,10 @@ add_executable(LunarGravity
                 utils/gravityevent.hpp
                 utils/gravityclock.hpp
                 ${GRAVITY_OS_SOURCES}
+                engine/gravityscene.cpp
+                engine/gravityscene.hpp
+                engine/gravityscenesplash.cpp
+                engine/gravityscenesplash.hpp
                 engine/gravitygfxengine.cpp
                 engine/gravitygfxengine.hpp
                 engine/gravityvulkanengine.cpp

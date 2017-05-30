@@ -28,10 +28,11 @@
 
 #include "gravitylogger.hpp"
 #include "gravitysettingreader.hpp"
-#include "gravityvulkandemo.hpp"
+#include "gravityscene.hpp"
 #include "gravitywindow.hpp"
 #include "gravityclock.hpp"
 #include "gravityevent.hpp"
+#include "gravityvulkandemo.hpp"
 
 GravityVulkanDemo::GravityVulkanDemo() : GravityVulkanEngine() {
 }
@@ -100,30 +101,26 @@ bool GravityVulkanDemo::Init(std::vector<std::string> &arguments) {
     if (!GravityVulkanEngine::Init(arguments)) {
         return false;
     }
-
-    // TODO: Demo specific Init code
-
-    return true;
+    
+    // Load the initial scene here
+    return m_cur_scene->Start();
 }
 
-bool GravityVulkanDemo::Update() {
-    // TODO: Demo specific Update code
-
-    return true;
+bool GravityVulkanDemo::Update(float comp_time, float game_time) {
+    return m_cur_scene->Update(comp_time, game_time);
 }
 
 bool GravityVulkanDemo::BeginDrawFrame() {
-    bool success = GravityVulkanEngine::BeginDrawFrame();
+    if (!GravityVulkanEngine::BeginDrawFrame()) {
+        return false;
+    }
 
     // TODO: Demo specific BeginDrawFrame code
-
-    return success;
+    return true;
 }
 
 bool GravityVulkanDemo::Draw() {
-    // TODO: Demo specific Draw code
-
-    return true;
+    return m_cur_scene->Draw();
 }
 
 bool GravityVulkanDemo::EndDrawFrame() {

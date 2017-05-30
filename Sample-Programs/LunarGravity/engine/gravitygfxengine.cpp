@@ -25,6 +25,7 @@
 
 #include "gravitylogger.hpp"
 #include "gravitysettingreader.hpp"
+#include "gravityscenesplash.hpp"
 
 #ifdef VK_USE_PLATFORM_XCB_KHR
 #include "gravityclocklinux.hpp"
@@ -63,6 +64,8 @@ GravityGraphicsEngine::GravityGraphicsEngine() {
     m_paused = false;
     m_num_phys_devs = 0;
     m_num_backbuffers = 2;
+    m_cur_scene = nullptr;
+    m_next_scene = nullptr;
 
     GravityLogger &logger = GravityLogger::getInstance();
     logger.SetLogLevel(log_level);
@@ -78,6 +81,14 @@ GravityGraphicsEngine::GravityGraphicsEngine() {
 }
 
 GravityGraphicsEngine::~GravityGraphicsEngine() {
+    if (nullptr != m_cur_scene) {
+        delete m_cur_scene;
+        m_cur_scene = nullptr;
+    }
+    if (nullptr != m_next_scene) {
+        delete m_next_scene;
+        m_next_scene = nullptr;
+    }
     if (nullptr != m_settings) {
         delete m_settings;
         m_settings = nullptr;
@@ -106,6 +117,7 @@ bool GravityGraphicsEngine::Init(std::vector<std::string> &arguments) {
     bool app_name_found = false;
     bool app_version_found = false;
     GravityLogger &logger = GravityLogger::getInstance();
+    std::string start_scene = "";
 
     if (m_settings == nullptr) {
         return false;
@@ -120,6 +132,8 @@ bool GravityGraphicsEngine::Init(std::vector<std::string> &arguments) {
                 } else if (app_setting.name == "version") {
                     m_app_version = atoi(app_setting.value.c_str());
                     app_version_found = true;
+                } else if (app_setting.name == "starting scene") {
+                    start_scene = app_setting.value;
                 }
                 if (app_name_found && app_version_found) {
                     break;
@@ -199,11 +213,19 @@ bool GravityGraphicsEngine::Init(std::vector<std::string> &arguments) {
 
     m_cur_frame = 0;
 
-    if (m_clock == nullptr || m_window == nullptr) {
+    if (start_scene.size() == 0) {
+        logger.LogError("Could not find start scene in settings file!");
         return false;
     } else {
-        return true;
+        // Create the starting scene
+        m_cur_scene = GravityScene::LoadScene(start_scene);
     }
+
+    if (m_clock == nullptr || m_window == nullptr || m_cur_scene == nullptr) {
+        return false;
+    }
+
+    return true;
 }
 
 void GravityGraphicsEngine::AppendUsageString(std::string &usage) {
@@ -315,7 +337,7 @@ void GravityGraphicsEngine::Loop(void) {
         last_update_computer_time_diff += computer_time_diff;
         last_update_game_time_diff += game_time_diff;
         ProcessEvents();
-        Update();
+        Update(last_update_computer_time_diff, last_update_game_time_diff);
         if (!m_paused) {
             if (BeginDrawFrame()) {
                 Draw();

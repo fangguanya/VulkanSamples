@@ -83,9 +83,9 @@ bool GravityVulkanEngine::Init(std::vector<std::string> &arguments) {
             for (auto sub_group : cur_group.groups) {
                 if (sub_group.name == "swap") {
                     for (auto cur_swap_setting : sub_group.settings) {
-                        if (cur_swap_setting.name == "number_bufs") {
+                        if (cur_swap_setting.name == "number buffers") {
                             m_num_backbuffers = atoi(cur_swap_setting.value.c_str());
-                        } else if (cur_swap_setting.name == "fliptype") {
+                        } else if (cur_swap_setting.name == "flip type") {
                             if (cur_swap_setting.value == "Fifo") {
                                 m_swapchain_surface.present_mode = VK_PRESENT_MODE_FIFO_KHR;
                             } else if (cur_swap_setting.value == "Fifo_Relaxed") {
