@@ -29,6 +29,10 @@ samples "init" utility functions
 #include "util_init.hpp"
 #include "cube_data.h"
 
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+#include <linux/input.h>
+#endif
+
 using namespace std;
 
 /*
@@ -172,6 +176,8 @@ void init_instance_extension_names(struct sample_info &info) {
     info.instance_extension_names.push_back(VK_MVK_IOS_SURFACE_EXTENSION_NAME);
 #elif defined(VK_USE_PLATFORM_MACOS_MVK)
     info.instance_extension_names.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+    info.instance_extension_names.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
 #else
     info.instance_extension_names.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 #endif
@@ -339,9 +345,106 @@ void destroy_debug_report_callback(struct sample_info &info) {
     }
 }
 
+#if defined(VK_USE_PLATFORM_WAYLAND_KHR)
+
+static void handle_ping(void *data, wl_shell_surface *shell_surface, uint32_t serial) {
+    wl_shell_surface_pong(shell_surface, serial);
+}
+
+static void handle_configure(void *data, wl_shell_surface *shell_surface, uint32_t edges, int32_t width, int32_t height) {}
+
+static void handle_popup_done(void *data, wl_shell_surface *shell_surface) {}
+
+static const wl_shell_surface_listener shell_surface_listener = {handle_ping, handle_configure, handle_popup_done};
+
+static void pointer_handle_enter(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface, wl_fixed_t sx,
+                                 wl_fixed_t sy) {}
+
+static void pointer_handle_leave(void *data, struct wl_pointer *pointer, uint32_t serial, struct wl_surface *surface) {}
+
+static void pointer_handle_motion(void *data, struct wl_pointer *pointer, uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {}
+
+static void pointer_handle_button(void *data, struct wl_pointer *wl_pointer, uint32_t serial, uint32_t time, uint32_t button,
+                                  uint32_t state) {
+    sample_info *info = (sample_info *)data;
+    if (button == BTN_LEFT && state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        wl_shell_surface_move(info->shell_surface, info->seat, serial);
+    }
+}
+
+static void pointer_handle_axis(void *data, struct wl_pointer *wl_pointer, uint32_t time, uint32_t axis, wl_fixed_t value) {}
+
+static const struct wl_pointer_listener pointer_listener = {
+    pointer_handle_enter, pointer_handle_leave, pointer_handle_motion, pointer_handle_button, pointer_handle_axis,
+};
+
+static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard, uint32_t format, int fd, uint32_t size) {}
+
+static void keyboard_handle_enter(void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface,
+                                  struct wl_array *keys) {}
+
+static void keyboard_handle_leave(void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface) {}
+
+static void keyboard_handle_key(void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key,
+                                uint32_t state) {
+    if (state != WL_KEYBOARD_KEY_STATE_RELEASED) return;
+    if (key == KEY_ESC) {
+        exit(0);
+    }
+}
+
+static void keyboard_handle_modifiers(void *data, wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed,
+                                      uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+    keyboard_handle_keymap, keyboard_handle_enter, keyboard_handle_leave, keyboard_handle_key, keyboard_handle_modifiers,
+};
+
+static void seat_handle_capabilities(void *data, wl_seat *seat, uint32_t caps) {
+    // Subscribe to pointer events
+    sample_info *info = (sample_info *)data;
+    if ((caps & WL_SEAT_CAPABILITY_POINTER) && !info->pointer) {
+        info->pointer = wl_seat_get_pointer(seat);
+        wl_pointer_add_listener(info->pointer, &pointer_listener, info);
+    } else if (!(caps & WL_SEAT_CAPABILITY_POINTER) && info->pointer) {
+        wl_pointer_destroy(info->pointer);
+        info->pointer = NULL;
+    }
+    // Subscribe to keyboard events
+    if (caps & WL_SEAT_CAPABILITY_KEYBOARD) {
+        info->keyboard = wl_seat_get_keyboard(seat);
+        wl_keyboard_add_listener(info->keyboard, &keyboard_listener, info);
+    } else if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
+        wl_keyboard_destroy(info->keyboard);
+        info->keyboard = NULL;
+    }
+}
+
+static const wl_seat_listener seat_listener = {
+    seat_handle_capabilities,
+};
+
+static void registry_handle_global(void *data, wl_registry *registry, uint32_t id, const char *interface, uint32_t version) {
+    sample_info *info = (sample_info *)data;
+    // pickup wayland objects when they appear
+    if (strcmp(interface, "wl_compositor") == 0) {
+        info->compositor = (wl_compositor *)wl_registry_bind(registry, id, &wl_compositor_interface, 1);
+    } else if (strcmp(interface, "wl_shell") == 0) {
+        info->shell = (wl_shell *)wl_registry_bind(registry, id, &wl_shell_interface, 1);
+    } else if (strcmp(interface, "wl_seat") == 0) {
+        info->seat = (wl_seat *)wl_registry_bind(registry, id, &wl_seat_interface, 1);
+        wl_seat_add_listener(info->seat, &seat_listener, info);
+    }
+}
+
+static void registry_handle_global_remove(void *data, wl_registry *registry, uint32_t name) {}
+
+static const wl_registry_listener registry_listener = {registry_handle_global, registry_handle_global_remove};
+
+#endif
+
 void init_connection(struct sample_info &info) {
-#if !(defined(_WIN32) || defined(__ANDROID__) || defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
-// Do nothing on Android, Apple, or Windows.
+#if defined(VK_USE_PLATFORM_XCB_KHR)
     const xcb_setup_t *setup;
     xcb_screen_iterator_t iter;
     int scr;
@@ -357,6 +460,20 @@ void init_connection(struct sample_info &info) {
     while (scr-- > 0) xcb_screen_next(&iter);
 
     info.screen = iter.data;
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+    info.display = wl_display_connect(nullptr);
+
+    if (info.display == nullptr) {
+        printf(
+            "Cannot find a compatible Vulkan installable client driver "
+            "(ICD).\nExiting ...\n");
+        fflush(stdout);
+        exit(1);
+    }
+
+    info.registry = wl_display_get_registry(info.display);
+    wl_registry_add_listener(info.registry, &registry_listener, &info);
+    wl_display_dispatch(info.display);
 #endif
 }
 #ifdef _WIN32
@@ -449,7 +566,42 @@ void destroy_window(struct sample_info &info) {
 void init_window(struct sample_info &info) {}
 
 void destroy_window(struct sample_info &info) {}
+
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+
+void init_window(struct sample_info &info) {
+    assert(info.width > 0);
+    assert(info.height > 0);
+
+    info.window = wl_compositor_create_surface(info.compositor);
+    if (!info.window) {
+        printf("Can not create wayland_surface from compositor!\n");
+        fflush(stdout);
+        exit(1);
+    }
+
+    info.shell_surface = wl_shell_get_shell_surface(info.shell, info.window);
+    if (!info.shell_surface) {
+        printf("Can not get shell_surface from wayland_surface!\n");
+        fflush(stdout);
+        exit(1);
+    }
+
+    wl_shell_surface_add_listener(info.shell_surface, &shell_surface_listener, &info);
+    wl_shell_surface_set_toplevel(info.shell_surface);
+}
+
+void destroy_window(struct sample_info &info) {
+    wl_shell_surface_destroy(info.shell_surface);
+    wl_surface_destroy(info.window);
+    wl_shell_destroy(info.shell);
+    wl_compositor_destroy(info.compositor);
+    wl_registry_destroy(info.registry);
+    wl_display_disconnect(info.display);
+}
+
 #else
+
 void init_window(struct sample_info &info) {
     assert(info.width > 0);
     assert(info.height > 0);
@@ -642,6 +794,13 @@ void init_swapchain_extension(struct sample_info &info) {
     createInfo.flags = 0;
     createInfo.pView = info.window;
     res = vkCreateMacOSSurfaceMVK(info.inst, &createInfo, NULL, &info.surface);
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+    VkWaylandSurfaceCreateInfoKHR createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+    createInfo.pNext = NULL;
+    createInfo.display = info.display;
+    createInfo.surface = info.window;
+    res = vkCreateWaylandSurfaceKHR(info.inst, &createInfo, NULL, &info.surface);
 #else
     VkXcbSurfaceCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
